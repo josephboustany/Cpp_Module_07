@@ -52,7 +52,7 @@ int	main( void )
 
 	std::cout << "-- non-const int array --" << std::endl;
 	std::cout << "before: ";
-	::iter( numbers, len, print<int> );
+	::iter( numbers, len, print<int> );//subject ask us that The third parameter can be an instantiated function template.
 	std::cout << std::endl;
 
 	::iter( numbers, len, increment<int> );

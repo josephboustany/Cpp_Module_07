@@ -1,7 +1,7 @@
 #ifndef ITER_HPP
 # define ITER_HPP
 
-# include <cstddef>
+# include <cstddef> //Includes the definition of std::size_t.
 
 /*
 ** iter: calls the function f on every element of the array, in order.
