@@ -5,9 +5,11 @@
 ## Context
 - Student at 42 school, working through the C++ module series (Modules 0–4 already completed).
 - Working directory (Module 5, exceptions — history below): `/home/joseph/Workspace/42/Core_Projects/Cpp_Modules/Cpp_Module_5/Claude_Code`
-- Working directory (Module 06, casts — current): `/home/joseph/data/Core_Projects/Cpp_Modules/CPP_Module_06/Claude_Code`
+- Working directory (Module 06, casts — history below): `/home/joseph/data/Core_Projects/Cpp_Modules/CPP_Module_06/Claude_Code`
+- Working directory (Module 07, templates — current): `/sgoinfre/jboustan/Core/Cpp_Modules/Cpp_Module_07/Claude_Code`
 - Module 5 topic: repetition and exceptions (`throw`/`try`/`catch`, custom exception classes, `std::exception`).
-- Module 06 topic: C++ casts (`static_cast`, `reinterpret_cast`, `dynamic_cast`, `const_cast`). This file was carried forward from the Module 5 project as a starting template — its house style/conventions below apply across modules, but the Context and "Completed Exercises" sections are per-module and dated; the Module 06 entries are the current work.
+- Module 06 topic: C++ casts (`static_cast`, `reinterpret_cast`, `dynamic_cast`, `const_cast`).
+- Module 07 topic: templates — generic function templates (`swap`/`min`/`max`, `iter`) and a class template (`Array<T>`). This file was carried forward from the Module 5/06 projects as a starting template — its house style/conventions below apply across modules, but the Context and "Completed Exercises" sections are per-module and dated; the Module 07 entries are the current work.
 - Peer evaluation is a real constraint — constructor/destructor messages and canonical form are checked by peers.
 - Each exercise gets an explanation file (`exNN_explained.md`) inside its directory.
 
@@ -578,3 +580,110 @@ re: fclean all
     remembering next time a clean/rebuild pass touches `ex00`: its compiled
     binary is committed, so `fclean`+forgetting to rebuild-and-re-add (or
     `git checkout`) would leave it looking deleted in `git status`.
+
+---
+
+## Completed Exercises (Module 07)
+
+- **ex00** — `whatever.hpp`: `swap`/`min`/`max` as function templates,
+  defined entirely in the header (the one case where a header may contain a
+  function implementation). `swap(T & a, T & b)` exchanges two references
+  and returns nothing; `min`/`max` compare with `<` alone (no `<=`/`>=`/`>`,
+  so `T` only needs `operator<`) and return the second argument on a tie,
+  per the subject. `main.cpp` exercises all three on both `int` and
+  `std::string`. Binary: `whatever`. Pre-existing before this project's
+  Claude Code sessions began; reviewed 2026-09-14 against the subject and
+  confirmed fully compliant — compiles clean under
+  `-Wall -Wextra -Werror -std=c++98`, output matches the subject's worked
+  example byte-for-byte. Only nit: the compiled binary `whatever` and
+  `main.o` are tracked in git with no `.gitignore` — flagged, not yet fixed
+  either way. No files-overview, Scratch scaffold, or explanation file yet.
+
+- **ex01** — `iter.hpp`: `iter(T * array, std::size_t const len, F f)` calls
+  `f` on every element of `array`, in order. Two overloads (`T *` and
+  `T const *`) so overload resolution picks the right one for the array's
+  actual constness — the non-const overload lets `f` take its argument by
+  non-const reference and mutate elements; the const overload is the only
+  one that can match a `const`-qualified array, and only allows read access.
+  Length parameter is `std::size_t const len`. `F` accepts a plain function,
+  an instantiated function template, or a functor — `iter` doesn't care, it
+  just calls `f(array[i])`. `main.cpp` exercises it with an instantiated
+  function template by non-const ref (mutates), one by const ref, a plain
+  non-template function, a functor, a `const int` array, and a
+  `std::string` array. Binary: `iter`. Built from scratch 2026-09-14;
+  verified via `make re` + run: compiles clean, output correct. The user has
+  since hand-edited `ex01/main.cpp` themselves (added a comment about `::`
+  naming the global namespace) — that edit is the current state on disk, not
+  something to revert. No files-overview, Scratch scaffold, or explanation
+  file yet.
+
+- **ex02** — `Array<T>`: files split `Array.hpp` (declarations only) /
+  `Array.tpp` (template definitions, `#include`d at the bottom of the
+  `.hpp`), matching this project's class-file-naming convention even though
+  templates can't be split into a separate `.cpp`. Default constructor
+  allocates `new T[0]`; the `unsigned int n` constructor allocates
+  `new T[n]` then assigns `T()` to every element explicitly — `new T[n]`
+  alone already default-constructs class-type elements but leaves built-in
+  types (int, char, ...) with indeterminate values, so the explicit `T()`
+  assignment is what actually satisfies "initialized by default" for both
+  kinds of `T` (this is the point of the subject's `new int()` tip). Copy
+  constructor and `operator=` both deep-copy element-by-element so mutating
+  one `Array` never affects the other. `operator=` builds the entire
+  replacement array first (`new T[rhs._size]` + copy loop) and only
+  `delete[]`s the old `_elements` afterward, so it's self-assignment-safe by
+  construction on top of the standard `if (this != &rhs)` guard — the guard
+  protects against a naive "delete old first, then copy from rhs" ordering,
+  which would leave `rhs._elements` dangling before the copy loop reads it
+  during self-assignment. `operator[]` (both non-const and const overloads)
+  takes `unsigned int index` and throws a nested
+  `Array<T>::OutOfBoundsException` (inherits `std::exception`, only
+  overrides `what()`, exempt from OCF as a data-less exception class) when
+  `index >= _size` — this also transparently catches negative indices, since
+  a negative `int` literal implicitly converts to a huge `unsigned int` at
+  the call site. `size()` is `const`, takes no params. Binary: `array`.
+  `main.cpp` exercises: empty default array, `Array<int>(5)` and
+  `Array<std::string>(3)` default-init, copy-then-mutate independence,
+  assign-then-mutate independence, self-assignment (via a pointer
+  indirection — `assigned = assigned;` directly fails to compile under
+  `-Werror` because clang's `-Wself-assign-overloaded` treats it as an
+  error), and three out-of-bounds cases (positive index, negative index,
+  index into an empty array) all caught via `catch (std::exception &)`.
+  Built from scratch 2026-09-15; verified via actual `make re` + run:
+  compiles clean under `-Wall -Wextra -Werror -std=c++98`;
+  `valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1` — 16
+  allocs, 16 frees, 0 leaks, 0 errors. No `.gitignore` in this repo (matches
+  ex00's precedent above) so `ex02/array` and `ex02/main.o` are left as
+  on-disk build output, uncommitted until the user stages them. A one-line
+  explanatory comment was added above every function in `Array.tpp` (each
+  ctor, `operator=`, dtor, both `operator[]` overloads, `size()`,
+  `OutOfBoundsException::what()`) and above `printIntArray` in `main.cpp`,
+  at the user's request; rebuilt after each edit to confirm still clean. No
+  files-overview, Scratch scaffold, or explanation file yet.
+  - `main.cpp` was replaced 2026-09-15 with a stress-test main: fills a
+    750-element `Array<int>` and a parallel raw `int*` mirror with the same
+    random values, copy-constructs it twice in a nested scope
+    (`tmp`/`test`) to prove copying never mutates the original, diffs every
+    element against the mirror afterward, triggers both
+    `OutOfBoundsException` cases (`numbers[-2]`, `numbers[MAX_VAL]`) inside
+    `try`/`catch`, then refills and frees the mirror. First tried outside
+    the exercise folders (root-level `main.cpp`, since deleted) with
+    `#include <Array.hpp>` and no `<cstdlib>`/`<ctime>` — compiled there
+    only via manual `-I`/`-include` workarounds. Once moved into `ex02/`
+    and built with the exercise's real Makefile (no `-I` flag), it failed
+    with 4 errors: angled-bracket `<Array.hpp>` not found (needs quotes
+    since there's no include path) and `srand`/`rand`/`time` undeclared.
+    Fixed by changing to `#include "Array.hpp"` and adding
+    `#include <cstdlib>` + `#include <ctime>`. Verified via `make re`: builds
+    clean under `-Wall -Wextra -Werror -std=c++98`, runs with exit 0 and
+    both expected `Array: index out of bounds` lines; valgrind — 7 allocs,
+    7 frees, 0 leaks, 0 errors.
+
+- **Root `README.md`** — written 2026-09-15 at the request of the user, one
+  level up from `ex00`–`ex02` (not per-exercise), modeled directly on the
+  Module 06 root README's structure: Description, Core Features (one
+  subsection per exercise), Instructions, Running, Example Behavior,
+  Project Structure, Technical Constraints, Key Concepts Covered, Author,
+  License. Built by actually reading every header/`.cpp`/`main.cpp` in
+  `ex00`–`ex02` first, then compiling and running all three binaries
+  (`whatever`, `iter`, `array`) to capture real output for the Example
+  Behavior section rather than inventing it.
